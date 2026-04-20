@@ -27,41 +27,5 @@ Applicazione web per la gestione e prenotazione di parcheggi a Brescia, con focu
    npm run dev
    ```
 
-## Struttura del Progetto
+# EasyStop
 
-```
-src/
-├── api/
-│   └── supabaseClient.js   # Client Supabase + helpers auth/entities/booking
-├── components/
-│   ├── admin/              # Componenti pannello admin
-│   ├── booking/            # Form prenotazione, QR code, card
-│   ├── layout/             # AppLayout con sidebar navigazione
-│   ├── map/                # Marker, popup, filtri mappa
-│   ├── ui/                 # Componenti shadcn/ui
-│   └── vehicle/            # Gestione veicoli utente
-├── hooks/
-│   ├── useParking.js       # Hook per fetch parcheggi da Supabase
-│   └── use-mobile.jsx      # Hook responsive
-├── lib/
-│   ├── AuthContext.jsx     # Context autenticazione globale
-│   ├── bresciaCoords.js    # Coordinate centro mappa
-│   ├── greenUtils.js       # Calcoli CO₂, prezzi, QR code
-│   └── utils.js            # Utility generiche
-└── pages/
-    ├── LoginPage.jsx
-    ├── RegisterPage.jsx
-    ├── MapPage.jsx          # Mappa principale con filtri e prenotazione
-    ├── UserDashboard.jsx
-    ├── BookingsPage.jsx
-    ├── ProfilePage.jsx
-    └── admin/              # Dashboard, parcheggi, utenti admin
-```
-
-## Entità Database
-
-Le definizioni SQL si trovano in `entities/`:
-- `Utente.sql`
-- `Parcheggio.sql`
-- `Prenotazione.sql`
-- `Veicolo.sql`
