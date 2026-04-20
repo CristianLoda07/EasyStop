@@ -30,16 +30,19 @@ export default function AdminBookings() {
   const [deleteBooking, setDeleteBooking] = useState(null);
   const [viewDetails, setViewDetails] = useState(null);
 
-  const { data: prenotazioni = [] } = useQuery({
+  const { data: prenotazioni = [], isLoading, isError, error } = useQuery({
     queryKey: ['admin-prenotazioni'],
     queryFn: () => base44.entities.Prenotazione.list('-created_date', 500),
   });
 
-  const filtered = prenotazioni.filter(p =>
-    p.parcheggio_nome?.toLowerCase().includes(search.toLowerCase()) ||
-    p.veicolo_targa?.toLowerCase().includes(search.toLowerCase()) ||
-    p.email_utente?.toLowerCase().includes(search.toLowerCase())
-  );
+  const term = search.trim().toLowerCase();
+  const filtered = !term
+    ? prenotazioni
+    : prenotazioni.filter((p) => (
+      `${p.parcheggio_nome || ''} ${p.id_park || ''}`.toLowerCase().includes(term) ||
+      `${p.veicolo_targa || ''} ${p.id_vcl || ''}`.toLowerCase().includes(term) ||
+      `${p.email_utente || ''} ${p.id_user || ''}`.toLowerCase().includes(term)
+    ));
 
   // Mutation per eliminare prenotazione
   const deleteBookingMutation = useMutation({
@@ -75,6 +78,11 @@ export default function AdminBookings() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
+          {isError && (
+            <div className="p-4 text-sm text-destructive">
+              Errore caricamento prenotazioni: {error?.message || 'permessi insufficienti (RLS) o query non valida'}
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -89,8 +97,14 @@ export default function AdminBookings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(p => (
-                <TableRow key={p.id}>
+              {!isLoading && filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    Nessuna prenotazione trovata.
+                  </TableCell>
+                </TableRow>
+              ) : filtered.map(p => (
+                <TableRow key={p.id_prenotazione || p.id}>
                   <TableCell className="font-medium">{p.parcheggio_nome || '-'}</TableCell>
                   <TableCell className="text-muted-foreground">{p.veicolo_targa || '-'}</TableCell>
                   <TableCell className="text-sm">{p.email_utente || '-'}</TableCell>

@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  ''
+).trim();
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
     "ERRORE: Variabili d'ambiente Supabase non trovate! " +
-    "Assicurati di avere un file .env.local con VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY."
+    "Assicurati di avere VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (o VITE_SUPABASE_PUBLISHABLE_KEY)."
   );
 }
 

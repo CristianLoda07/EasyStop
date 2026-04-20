@@ -20,7 +20,7 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [deleteUser, setDeleteUser] = useState(null);
 
-  const { data: utenti = [], isLoading } = useQuery({
+  const { data: utenti = [], isLoading, isError, error } = useQuery({
     queryKey: ['admin-utenti'],
     queryFn: () => base44.entities.User.list(),
   });
@@ -64,6 +64,11 @@ export default function AdminUsers() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
+          {isError && (
+            <div className="p-4 text-sm text-destructive">
+              Errore caricamento utenti: {error?.message || 'permessi insufficienti (RLS) o query non valida'}
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -76,7 +81,13 @@ export default function AdminUsers() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(u => (
+              {!isLoading && filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Nessun utente trovato.
+                  </TableCell>
+                </TableRow>
+              ) : filtered.map(u => (
                 <TableRow key={u.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
