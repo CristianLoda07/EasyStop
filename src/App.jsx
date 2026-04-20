@@ -19,6 +19,7 @@ import BookingsPage from './pages/BookingsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminParkings from './pages/admin/AdminParkings';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminBookings from './pages/admin/AdminBookings';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -66,6 +67,7 @@ const AuthenticatedApp = () => {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/parkings" element={<AdminParkings />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/bookings" element={<AdminBookings />} />
           </Route>
         </Route>
       </Route>

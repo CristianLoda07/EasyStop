@@ -18,6 +18,7 @@ const userNavItems = [
 const adminNavItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard Admin' },
   { path: '/admin/parkings', icon: Car, label: 'Parcheggi' },
+  { path: '/admin/bookings', icon: CalendarCheck, label: 'Prenotazioni' },
   { path: '/admin/users', icon: User, label: 'Utenti' },
 ];
 

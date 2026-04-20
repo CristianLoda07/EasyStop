@@ -13,8 +13,9 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState({ id: 'mock-app', public_settings: {} });
 
   useEffect(() => {
-    // Controlla sessione all'avvio
-    checkUserAuth();
+    // Non controllare automaticamente al caricamento
+    setIsLoadingAuth(false);
+    setAuthChecked(true);
 
     // Ascolta i cambiamenti di stato autenticazione (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

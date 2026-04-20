@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/supabaseClient';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Users, Shield, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Users, Shield, User, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export default function AdminUsers() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [deleteUser, setDeleteUser] = useState(null);
 
   const { data: utenti = [], isLoading } = useQuery({
     queryKey: ['admin-utenti'],
@@ -20,6 +29,19 @@ export default function AdminUsers() {
     u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Mutation per eliminare utente
+  const deleteUserMutation = useMutation({
+    mutationFn: () => base44.entities.User.delete(deleteUser.id),
+    onSuccess: () => {
+      toast.success('Utente eliminato con successo');
+      queryClient.invalidateQueries({ queryKey: ['admin-utenti'] });
+      setDeleteUser(null);
+    },
+    onError: (error) => {
+      toast.error(`Errore: ${error.message || 'Impossibile eliminare l\'utente'}`);
+    },
+  });
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -47,8 +69,10 @@ export default function AdminUsers() {
               <TableRow>
                 <TableHead>Utente</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Telefono</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Data Registrazione</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -65,6 +89,7 @@ export default function AdminUsers() {
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{u.telefono || '-'}</TableCell>
                   <TableCell>
                     <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="flex items-center gap-1 w-fit">
                       {u.role === 'admin' ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
@@ -74,12 +99,45 @@ export default function AdminUsers() {
                   <TableCell className="text-muted-foreground text-sm">
                     {u.created_at ? format(new Date(u.created_at), 'dd/MM/yyyy') : '-'}
                   </TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => setDeleteUser(u)}
+                      disabled={u.role === 'admin'}
+                      title={u.role === 'admin' ? 'Non puoi eliminare un admin' : 'Elimina utente'}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Utente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vuoi eliminare l'utente "{deleteUser?.full_name || deleteUser?.email}"? L'operazione è irreversibile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUserMutation.isPending}>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteUserMutation.mutate()} 
+              disabled={deleteUserMutation.isPending}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {deleteUserMutation.isPending ? 'Eliminazione...' : 'Elimina'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
