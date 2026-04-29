@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
-import { base44, supabase } from '@/api/supabaseClient';
-import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/api/supabaseClient';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,40 +8,80 @@ import { Button } from '@/components/ui/button';
 import { CalendarCheck, Car, MapPin, Leaf, ArrowRight } from 'lucide-react';
 import BookingCard from '@/components/booking/BookingCard';
 import StatCard from '@/components/ui/StatCard';
+import { calcolaRisparmioEmissioni } from '@/lib/greenUtils';
 
 export default function UserDashboard() {
   const { user } = useAuth();
-
-  // DEBUG: logga user.id
-  useEffect(() => {
-    console.log('[DASHBOARD] user.id:', user?.id);
-  }, [user]);
+  const queryClient = useQueryClient();
 
   const { data: prenotazioni = [] } = useQuery({
     queryKey: ['prenotazioni-user', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const result = await base44.entities.Prenotazione.filter({ id_user: user.id }, '-created_at', 50);
-      console.log('[DASHBOARD] prenotazioni recuperate:', result);
-      return result;
+      const { data, error } = await supabase
+        .from('prenotazioni')
+        .select(`
+          *,
+          parcheggi:id_park ( park_name, address ),
+          veicoli:id_vcl ( targa, marca, alimentazione )
+        `)
+        .eq('id_user', user.id)
+        .order('inizio_sosta', { ascending: false })
+        .limit(50);
+      if (error) throw new Error(error.message);
+
+      const rows = (data || []).map(p => ({
+        ...p,
+        parcheggio_nome: p.parcheggi?.park_name || 'Parcheggio',
+        veicolo_targa:   p.veicoli?.targa || '',
+      }));
+
+      // Ricalcola CO2 per prenotazioni esistenti che hanno risparmio_co2 = 0
+      // ma appartengono a un veicolo non a benzina
+      const daAggiornare = rows.filter(p => {
+        if (p.risparmio_co2 > 0) return false;
+        if (p.stato === 'cancellata') return false;
+        const alim = p.veicoli?.alimentazione;
+        if (!alim || alim === 'benzina') return false;
+        return true;
+      });
+
+      if (daAggiornare.length > 0) {
+        // Aggiorna in background senza bloccare il render
+        Promise.all(
+          daAggiornare.map(p => {
+            const { risparmioGrammi } = calcolaRisparmioEmissioni(p.veicoli.alimentazione);
+            return supabase
+              .from('prenotazioni')
+              .update({ risparmio_co2: risparmioGrammi })
+              .eq('id_prenotazione', p.id_prenotazione);
+          })
+        ).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['prenotazioni-user', user?.id] });
+        });
+
+        // Aggiorna ottimisticamente i valori locali
+        return rows.map(p => {
+          if (!daAggiornare.find(d => d.id_prenotazione === p.id_prenotazione)) return p;
+          const { risparmioGrammi } = calcolaRisparmioEmissioni(p.veicoli?.alimentazione);
+          return { ...p, risparmio_co2: risparmioGrammi };
+        });
+      }
+
+      return rows;
     },
   });
 
-  // Utenti normali vedono solo i propri veicoli; admin vede tutti
   const { data: veicoli = [] } = useQuery({
-    queryKey: ['veicoli', user?.id, user?.role],
+    queryKey: ['veicoli', user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      if (user?.role === 'admin') {
-        return await base44.entities.Veicolo.list();
-      } else {
-        const { data, error } = await supabase
-          .from('veicoli')
-          .select('*')
-          .eq('id_user', user.id);
-        if (error) throw new Error(error.message);
-        return data || [];
-      }
+      const { data, error } = await supabase
+        .from('veicoli')
+        .select('*')
+        .eq('id_user', user.id);
+      if (error) throw new Error(error.message);
+      return data || [];
     },
   });
 
@@ -57,7 +97,6 @@ export default function UserDashboard() {
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold">
           Ciao, {user?.full_name?.split(' ')[0] || 'Utente'} 👋
@@ -65,7 +104,6 @@ export default function UserDashboard() {
         <p className="text-muted-foreground mt-1">Ecco il riepilogo delle tue attività</p>
       </div>
 
-      {/* Stats — usa il componente condiviso StatCard */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={CalendarCheck} label="Prenotazioni Attive" value={attive.length} color="text-blue-600 bg-blue-50" />
         <StatCard icon={Car} label="Veicoli Registrati" value={veicoli.length} color="text-purple-600 bg-purple-50" />
@@ -73,7 +111,6 @@ export default function UserDashboard() {
         <StatCard icon={Leaf} label="CO₂ Risparmiata" value={`${(totaleCO2 / 1000).toFixed(1)}kg`} color="text-emerald-600 bg-emerald-50" />
       </div>
 
-      {/* Prenotazioni attive */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Prenotazioni Attive</h2>
@@ -96,13 +133,12 @@ export default function UserDashboard() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {attive.slice(0, 4).map(b => (
-              <BookingCard key={b.id} booking={b} />
+              <BookingCard key={b.id_prenotazione} booking={b} />
             ))}
           </div>
         )}
       </div>
 
-      {/* Veicoli rapidi */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">I tuoi Veicoli</h2>
@@ -114,7 +150,7 @@ export default function UserDashboard() {
         </div>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {veicoli.map(v => (
-            <Card key={v.id_vcl || v.id} className="min-w-[180px] flex-shrink-0">
+            <Card key={v.id_vcl} className="min-w-[180px] flex-shrink-0">
               <CardContent className="p-4">
                 <p className="font-bold tracking-wider">{v.targa}</p>
                 <p className="text-xs text-muted-foreground">{v.marca} · {v.alimentazione}</p>

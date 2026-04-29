@@ -67,10 +67,18 @@ export default function BookingForm({ parking, open, onClose, onSuccess }) {
         throw new Error("La fine sosta deve essere successiva all'inizio");
       }
 
-      const selectedVeicolo = veicoli.find(v => v.id_vcl === form.veicolo_id);
-      const greenData = selectedVeicolo
-        ? calcolaRisparmioEmissioni(selectedVeicolo.alimentazione)
-        : { risparmioGrammi: 0 };
+      // Cerca prima nel cache locale, poi direttamente dal DB come fallback.
+      // Garantisce che alimentazione sia sempre presente al momento del salvataggio.
+      let selectedVeicolo = veicoli.find(v => v.id_vcl === form.veicolo_id);
+      if (!selectedVeicolo?.alimentazione) {
+        const { data: vDb } = await supabase
+          .from('veicoli')
+          .select('alimentazione')
+          .eq('id_vcl', form.veicolo_id)
+          .single();
+        if (vDb) selectedVeicolo = { ...selectedVeicolo, ...vDb };
+      }
+      const greenData = calcolaRisparmioEmissioni(selectedVeicolo?.alimentazione);
       const tariffa = parking?.tariffa_oraria || 1.50;
       const prezzo = calcolaPrezzo(form.inizio_sosta, form.fine_sosta, tariffa);
       const parkingId = parking?.id_park ?? parking?.id;

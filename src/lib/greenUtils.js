@@ -18,7 +18,9 @@ const EMISSIONI_CO2 = {
  */
 export function calcolaRisparmioEmissioni(alimentazione, kmStimati = 5) {
   const emissioniBenzina = EMISSIONI_CO2.benzina;
-  const emissioniVeicolo = EMISSIONI_CO2[alimentazione] || emissioniBenzina;
+  // Usa ?? invece di || perché EMISSIONI_CO2["elettrica"] === 0 (falsy con || cadeva sul fallback benzina)
+  const alimNorm = (alimentazione || "").toLowerCase().trim();
+  const emissioniVeicolo = EMISSIONI_CO2[alimNorm] ?? emissioniBenzina;
   const risparmioGrammi = (emissioniBenzina - emissioniVeicolo) * kmStimati;
   // Un albero assorbe ~22kg di CO2/anno = ~60g/giorno
   const alberiEquivalenti = risparmioGrammi > 0 ? parseFloat((risparmioGrammi / 60).toFixed(2)) : 0;
